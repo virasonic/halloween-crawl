@@ -1,0 +1,82 @@
+{
+  "title": "Halloween Crawl",
+  "year": "2026",
+  "stops": [
+    {
+      "token": "flogj3oo",
+      "heading": "The Hunt Begins",
+      "subheading": "Scan found. Now earn the next bar.",
+      "riddle": "PLACEHOLDER RIDDLE 1\nI have keys but open no locks, I have space but no room. You can enter, but never leave. What am I?",
+      "hashes": [
+        "5107ba0d22f4869fd971771cdd8be6679893a29cc5351dbbe4f845ffdd04b4e4",
+        "7d7f00e263834d33ab4ad3450b79a37c6f6ae16648302f2bf312ee4c282814af",
+        "91f060a9ad4b39eb228d9537292fab19d252faed06c169d0fdcb4a90560f5676"
+      ],
+      "hint": "You're probably typing on one right now.",
+      "hint_after": 3,
+      "next_name": "The Fish Cat",
+      "next_note": "Ask for the host. They're already there.",
+      "next_link": ""
+    },
+    {
+      "token": "3xvsg8k8",
+      "heading": "Second Blood",
+      "subheading": "You found the code. The riddle is harder.",
+      "riddle": "PLACEHOLDER RIDDLE 2\nFill the blank: Trick or _____",
+      "hashes": [
+        "a5075550e1f2376f804a057923b34bfedc630ce3e1adce55dfbd7270bed20f40"
+      ],
+      "hint": "Sweet, if you're lucky.",
+      "hint_after": 3,
+      "next_name": "Where the two kings meet",
+      "next_note": "Coordinates follow if you dare.",
+      "next_link": "https://maps.google.com/?q=40.4168,-3.7038"
+    },
+    {
+      "token": "f0amofxv",
+      "heading": "Halfway to Hell",
+      "subheading": "Three down. The night gets stranger.",
+      "riddle": "PLACEHOLDER RIDDLE 3\nThe more you take, the more you leave behind. What are they?",
+      "hashes": [
+        "1a11a5a27be607e96d0205aa1304d7f39c97416ab35892049129d3f6eafa90fb",
+        "297fd6226a7eab1523b3cd5cc1f2b6d61986ae0a273183c798397fcb8ff2001e",
+        "b7595e2a863957fc6c225ed540d335dd1e859dd3032451c2e11bceb0329defa6"
+      ],
+      "hint": "Look down.",
+      "hint_after": 3,
+      "next_name": "The Red Door",
+      "next_note": "",
+      "next_link": ""
+    },
+    {
+      "token": "b7bns9ex",
+      "heading": "The Witching Hour",
+      "subheading": "Almost there. Don't lose a teammate.",
+      "riddle": "PLACEHOLDER RIDDLE 4\nFill the blank: Double, double, toil and _____",
+      "hashes": [
+        "7130df43355ec25b38bac55351d4bdf2c965da2847b8824b5e7760adb7ef7cd1"
+      ],
+      "hint": "Macbeth, act four.",
+      "hint_after": 3,
+      "next_name": "The Sleeping Owl",
+      "next_note": "",
+      "next_link": ""
+    },
+    {
+      "token": "d3hza4ho",
+      "heading": "Last Call",
+      "subheading": "One more answer and the night is yours.",
+      "riddle": "PLACEHOLDER RIDDLE 5\nWhat has a neck but no head, and a body but no legs?",
+      "hashes": [
+        "423ef74f884b6b547f1d1a6f00f0a4cd5d7edb3b455befe2e7f69980d9263f11",
+        "7def9c79e5be6d7a70022168b8b099ce1e707a2fd809a60fab73de6de578884b",
+        "d054e115f775781691e845b51d64d214060a5af029d9f4e299bdedce31f1ce20"
+      ],
+      "hint": "You've been holding one all night.",
+      "hint_after": 3,
+      "next_name": "The Final Bar",
+      "next_note": "First team in buys nothing. Everyone else: congratulations, you survived.",
+      "next_link": ""
+    }
+  ]
+}
