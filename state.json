@@ -4,11 +4,11 @@
   "stops": [
     {
       "token": "eng4zcdg",
-      "heading": "New stop",
-      "subheading": "",
-      "riddle": "",
+      "heading": "TEST CLUE",
+      "subheading": "to test the web",
+      "riddle": "Fill in the ___",
       "hashes": [
-        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+        "ff71cf74abb3ccb005b8b64371725db15edc42c1ad33413bbe561b2da3c85ef9"
       ],
       "hint": "",
       "hint_after": 3,
