@@ -128,6 +128,22 @@
   .toast { font-family: var(--mono); font-size: .85rem; color: var(--toxic); }
   .toast.err { color: var(--blood); }
   @media (prefers-reduced-motion: reduce) { .shake, .reveal { animation: none; } }
+
+  /* QR print sheet */
+  .sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
+  .qcard { background: #fff; color: #1a0a00; border-radius: 6px; padding: 16px; display: grid; gap: 8px; justify-items: center; text-align: center; break-inside: avoid; }
+  .qcard .big { width: 100%; max-width: 240px; aspect-ratio: 1; }
+  .qcard .big img, .qcard .big canvas { display: block; width: 100% !important; height: auto !important; }
+  .qcard .t { font-family: var(--display); font-size: 1.5rem; color: #c2500a; line-height: 1; }
+  .qcard .s { font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: #6b5a4a; }
+  .qcard .h { font-family: var(--body); font-size: 1rem; color: #1a0a00; }
+  @media print {
+    body { background: #fff !important; color: #000; padding: 0; }
+    .noprint { display: none !important; }
+    .page { max-width: none; }
+    .sheet { grid-template-columns: 1fr 1fr; gap: 10mm; }
+    .qcard { border: 1px dashed #999; }
+  }
 </style>
 
 </head>
@@ -413,10 +429,34 @@
       };
       body.appendChild(el(
         '<div class="savebar"><button id="save" type="button">Save &amp; publish</button>' +
+        '<button class="ghost" id="qrsheet" type="button">Print QR codes</button>' +
         '<button class="ghost" id="forget" type="button">Lock this device</button>' +
         '<span class="toast" id="toast"></span></div>'));
       document.getElementById('save').onclick = save;
       document.getElementById('forget').onclick = function () { try { localStorage.removeItem(LS_TOKEN); } catch (e) {} location.reload(); };
+      document.getElementById('qrsheet').onclick = function () { renderSheet(); };
+    }
+
+    // Printable sheet of every stop's QR (uses the SAVED stops, not unsaved edits).
+    function renderSheet() {
+      app.className = 'page wide';
+      app.innerHTML =
+        '<div class="row noprint"><button class="ghost" id="back" type="button">← Back to panel</button><button id="print" type="button">Print</button>' +
+        '<span class="small">On a phone: long-press a code to save the image.</span></div>' +
+        '<div class="sheet" id="sheet"></div>';
+      var sheet = document.getElementById('sheet');
+      live.stops.forEach(function (s, i) {
+        var card = el(
+          '<div class="qcard"><div class="big" id="big-' + i + '"></div>' +
+            '<div class="t">Parada ' + (i + 1) + '</div>' +
+            '<div class="h">' + esc(s.heading) + '</div>' +
+            '<div class="s">Hide in ' + (i === 0 ? 'the start bar' : 'bar ' + i + ' (' + esc(live.stops[i - 1].next_name) + ')') + '</div>' +
+          '</div>');
+        sheet.appendChild(card);
+        if (window.QRCode) new QRCode(document.getElementById('big-' + i), { text: stopUrl(s.token), width: 480, height: 480, colorDark: '#1a0a00', colorLight: '#ff7a1a', correctLevel: QRCode.CorrectLevel.H });
+      });
+      document.getElementById('back').onclick = function () { renderAdmin(); };
+      document.getElementById('print').onclick = function () { window.print(); };
     }
 
     async function save() {
