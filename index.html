@@ -242,35 +242,103 @@
   }
 
   // ---------- admin ----------
+  // The GitHub token that lets the panel commit is kept in the repo as vault.json,
+  // encrypted with the host password (PBKDF2 600k + AES-GCM). Password unlocks it on any device.
+  var VAULT_API = 'https://api.github.com/repos/' + OWNER + '/' + REPO + '/contents/vault.json';
+  var b64 = { enc: function (u8) { var s = ''; u8.forEach(function (b) { s += String.fromCharCode(b); }); return btoa(s); },
+              dec: function (s) { return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); } };
+  async function deriveKey(pw, salt) {
+    var base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: salt, iterations: 600000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+  async function sealToken(pw, tok) {
+    var salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    var key = await deriveKey(pw, salt);
+    var ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(tok));
+    return { v: 1, salt: b64.enc(salt), iv: b64.enc(iv), ct: b64.enc(new Uint8Array(ct)) };
+  }
+  async function openToken(pw, vault) {
+    var key = await deriveKey(pw, b64.dec(vault.salt));
+    var pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64.dec(vault.iv) }, key, b64.dec(vault.ct));
+    return new TextDecoder().decode(pt);
+  }
+  async function checkToken(t) {
+    var r = await fetch(API + '?ref=' + BRANCH, { headers: { Authorization: 'Bearer ' + t, Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status === 401 ? 'GitHub rejected the token.' : r.status === 404 ? 'Token cannot see the repo (it needs Contents access to ' + REPO + ').' : 'GitHub answered ' + r.status + '.');
+    return r.json();
+  }
+
   function renderAdmin() {
     app.className = 'page wide';
     app.innerHTML =
       '<div class="badge"><b>Host panel</b> <span>' + esc(STATE.title) + '</span></div>' +
       '<h1>Control the crawl</h1>' +
-      '<section class="card" id="gate">' +
-        '<p class="sub" style="text-align:left">Publishing commits to <code class="small">' + OWNER + '/' + REPO + '</code>. Paste a GitHub token with write access to that repo. It stays in this browser only.</p>' +
-        '<form id="tokform"><label for="tok">GitHub token</label><div class="row"><input type="password" id="tok" style="flex:1 1 200px;width:auto;font-family:var(--mono)" placeholder="github_pat_…" autocomplete="off">' +
-        '<button type="submit">Unlock</button></div><p class="msg" id="tokmsg"></p></form>' +
-      '</section>' +
+      '<section class="card" id="gate"><p class="sub" id="gatemsg">Loading…</p></section>' +
       '<div id="adminbody" hidden></div>';
-    var tokform = document.getElementById('tokform'), tokmsg = document.getElementById('tokmsg');
+    var gate = document.getElementById('gate');
+
+    function unlocked(t, meta) {
+      lsSet(LS_TOKEN, t);
+      gate.hidden = true;
+      buildAdmin(t, meta.sha, JSON.parse(fromB64utf8(meta.content)));
+    }
+
+    // Device already unlocked once: go straight in.
     var saved = lsGet(LS_TOKEN);
-    if (saved) { document.getElementById('tok').value = saved; }
-    tokform.addEventListener('submit', async function (ev) {
-      ev.preventDefault();
-      var t = document.getElementById('tok').value.trim();
-      if (!t) return;
-      tokmsg.className = 'msg'; tokmsg.textContent = 'Checking…';
-      try {
-        var r = await fetch(API + '?ref=' + BRANCH, { headers: { Authorization: 'Bearer ' + t, Accept: 'application/vnd.github+json' }, cache: 'no-store' });
-        if (!r.ok) throw new Error(r.status === 401 ? 'Token rejected.' : r.status === 404 ? 'Token cannot see the repo (check it has Contents access to ' + REPO + ').' : 'GitHub answered ' + r.status + '.');
-        var meta = await r.json();
-        lsSet(LS_TOKEN, t);
-        document.getElementById('gate').hidden = true;
-        buildAdmin(t, meta.sha, JSON.parse(fromB64utf8(meta.content)));
-      } catch (e) { tokmsg.textContent = e.message; }
-    });
-    if (saved) tokform.requestSubmit();
+    if (saved) {
+      checkToken(saved).then(function (meta) { unlocked(saved, meta); }).catch(function () { try { localStorage.removeItem(LS_TOKEN); } catch (e) {} askPassword(); });
+    } else askPassword();
+
+    async function askPassword() {
+      var vr = await fetch(VAULT_API + '?ref=' + BRANCH + '&t=' + Date.now(), { headers: { Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' });
+      if (vr.status === 404) return firstTimeSetup();
+      var vault = await vr.json();
+      gate.innerHTML =
+        '<form id="pwform"><label for="pw">Host password</label><div class="row">' +
+        '<input type="password" id="pw" style="flex:1 1 200px;width:auto;font-family:var(--mono)" autocomplete="current-password">' +
+        '<button type="submit">Unlock</button></div><p class="msg" id="pwmsg"></p></form>';
+      var msg = document.getElementById('pwmsg');
+      document.getElementById('pwform').addEventListener('submit', async function (ev) {
+        ev.preventDefault();
+        var pw = document.getElementById('pw').value; if (!pw) return;
+        msg.className = 'msg'; msg.textContent = 'Unlocking…';
+        try {
+          var t = await openToken(pw, vault).catch(function () { throw new Error('Wrong password.'); });
+          var meta = await checkToken(t);
+          unlocked(t, meta);
+        } catch (e) { msg.textContent = e.message; }
+      });
+      document.getElementById('pw').focus();
+    }
+
+    function firstTimeSetup() {
+      gate.innerHTML =
+        '<p class="sub" style="text-align:left">First-time setup. Choose the host password, and paste a GitHub token with Contents write access to <code class="small">' + OWNER + '/' + REPO + '</code>. The token is stored in the repo encrypted with the password; from then on the password alone unlocks this panel on any device.</p>' +
+        '<form id="setup">' +
+          '<label for="pw1">Host password<input type="password" id="pw1" autocomplete="new-password"></label>' +
+          '<label for="pw2">Repeat password<input type="password" id="pw2" autocomplete="new-password"></label>' +
+          '<label for="tok">GitHub token<input type="password" id="tok" style="font-family:var(--mono)" placeholder="github_pat_…" autocomplete="off"></label>' +
+          '<div class="row"><button type="submit">Set password</button></div><p class="msg" id="setmsg"></p>' +
+        '</form>';
+      var msg = document.getElementById('setmsg');
+      document.getElementById('setup').addEventListener('submit', async function (ev) {
+        ev.preventDefault();
+        var p1 = document.getElementById('pw1').value, p2 = document.getElementById('pw2').value, t = document.getElementById('tok').value.trim();
+        if (p1.length < 6) { msg.textContent = 'Password needs at least 6 characters.'; return; }
+        if (p1 !== p2) { msg.textContent = 'Passwords do not match.'; return; }
+        if (!t) { msg.textContent = 'Paste the GitHub token.'; return; }
+        msg.className = 'msg'; msg.textContent = 'Checking token…';
+        try {
+          var meta = await checkToken(t);
+          msg.textContent = 'Encrypting…';
+          var vault = await sealToken(p1, t);
+          var r = await fetch(VAULT_API, { method: 'PUT', headers: { Authorization: 'Bearer ' + t, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'Set host password', content: b64utf8(JSON.stringify(vault) + '\n'), branch: BRANCH }) });
+          if (!r.ok) throw new Error('Could not save the vault (GitHub answered ' + r.status + ').');
+          unlocked(t, meta);
+        } catch (e) { msg.textContent = e.message; }
+      });
+    }
   }
 
   function buildAdmin(tok, sha, live) {
@@ -345,7 +413,7 @@
       };
       body.appendChild(el(
         '<div class="savebar"><button id="save" type="button">Save &amp; publish</button>' +
-        '<button class="ghost" id="forget" type="button">Forget token</button>' +
+        '<button class="ghost" id="forget" type="button">Lock this device</button>' +
         '<span class="toast" id="toast"></span></div>'));
       document.getElementById('save').onclick = save;
       document.getElementById('forget').onclick = function () { try { localStorage.removeItem(LS_TOKEN); } catch (e) {} location.reload(); };
