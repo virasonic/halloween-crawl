@@ -236,13 +236,21 @@
         '<div class="eyebrow">Next stop</div>' +
         '<p class="where">' + esc(s.next_name) + '</p>' +
         '<p class="note">' + esc(s.next_note) + '</p>' + link +
+        '<p class="note"><a href="#" id="again">Hide this and solve again</a></p>' +
       '</section>' +
       '<footer>' + esc(STATE.title) + ' · Madrid · ' + esc(STATE.year) + '</footer>';
 
     var form = document.getElementById('f'), input = document.getElementById('answer'), msg = document.getElementById('msg');
     var card = document.getElementById('card'), reveal = document.getElementById('reveal'), tries = 0;
-    function solve() { card.hidden = true; reveal.hidden = false; lsSet(KEY, 1); }
-    if (lsGet(KEY) === 1) solve();
+    // Remembered only for this browser tab, so a re-scan on another day starts fresh.
+    function solve() { card.hidden = true; reveal.hidden = false; try { sessionStorage.setItem(KEY, '1'); } catch (e) {} }
+    try { if (sessionStorage.getItem(KEY) === '1') solve(); } catch (e) {}
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    document.getElementById('again').onclick = function (ev) {
+      ev.preventDefault();
+      try { sessionStorage.removeItem(KEY); } catch (e) {}
+      reveal.hidden = true; card.hidden = false; input.value = ''; input.focus();
+    };
     form.addEventListener('submit', async function (ev) {
       ev.preventDefault();
       var v = norm(input.value); if (!v) return;
